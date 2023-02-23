@@ -25,6 +25,9 @@ const (
 	configFile = "config.json"
 	scopesFile = "scopes.json"
 	stateLen   = 32
+
+	reauthScope        = "https://www.googleapis.com/auth/accounts.reauth"
+	cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
 )
 
 var (
@@ -57,6 +60,13 @@ func retrieveToken(ctx context.Context) (*oauth2.Token, error) {
 		return nil, fmt.Errorf("error decoding token: %w", err)
 	}
 
+	if !token.Valid() {
+		token, err = refreshToken(ctx, token)
+		if err != nil {
+			return nil, fmt.Errorf("error refreshing token: %w", err)
+		}
+	}
+
 	return token, nil
 }
 
@@ -84,6 +94,24 @@ func mintNewToken(ctx context.Context) (*oauth2.Token, error) {
 	return token, nil
 }
 
+func refreshToken(ctx context.Context, token *oauth2.Token) (*oauth2.Token, error) {
+	config, err := getConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting oauth2 config: %w", err)
+	}
+
+	token, err = config.TokenSource(ctx, token).Token()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving token from token source: %w", err)
+	}
+
+	if err := saveToken(token); err != nil {
+		return nil, fmt.Errorf("error saving refreshed token: %w", err)
+	}
+
+	return token, nil
+}
+
 func getConfig() (*oauth2.Config, error) {
 	configFile, err := readConfig(configFile)
 	if err != nil {
@@ -99,6 +127,7 @@ func getConfig() (*oauth2.Config, error) {
 	if err := json.Unmarshal(scopesFile, &scopes); err != nil {
 		return nil, fmt.Errorf("error unmarshaling scopes: %w", err)
 	}
+	scopes = append(scopes, reauthScope, cloudPlatformScope)
 
 	config, err := google.ConfigFromJSON(configFile, scopes...)
 	if err != nil {
