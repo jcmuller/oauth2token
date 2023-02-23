@@ -15,6 +15,7 @@ import (
 
 	"github.com/99designs/keyring"
 	"github.com/adrg/xdg"
+	"golang.org/x/exp/slog"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -40,6 +41,7 @@ var (
 
 // Retrieves a token from secret store
 func retrieveToken(ctx context.Context) (*oauth2.Token, error) {
+	slog.Log(slog.LevelDebug, "retrieveToken")
 	ring, err := keyring.Open(keyringConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error opening keyring: %w", err)
@@ -61,6 +63,8 @@ func retrieveToken(ctx context.Context) (*oauth2.Token, error) {
 	}
 
 	if !token.Valid() {
+		slog.Log(slog.LevelDebug, "token is not valid. Refreshing")
+
 		token, err = refreshToken(ctx, token)
 		if err != nil {
 			return nil, fmt.Errorf("error refreshing token: %w", err)
@@ -72,6 +76,7 @@ func retrieveToken(ctx context.Context) (*oauth2.Token, error) {
 
 // Request a token from the web, then returns the retrieved token.
 func mintNewToken(ctx context.Context) (*oauth2.Token, error) {
+	slog.Log(slog.LevelDebug, "mintNewToken")
 	config, err := getConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error getting oauth2 config: %w", err)
@@ -81,6 +86,8 @@ func mintNewToken(ctx context.Context) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting code: %w", err)
 	}
+
+	slog.Log(slog.LevelDebug, "mintNewToken", slog.String("code", code))
 
 	token, err := config.Exchange(ctx, code)
 	if err != nil {
@@ -95,6 +102,8 @@ func mintNewToken(ctx context.Context) (*oauth2.Token, error) {
 }
 
 func refreshToken(ctx context.Context, token *oauth2.Token) (*oauth2.Token, error) {
+	slog.Log(slog.LevelDebug, "refreshToken")
+
 	config, err := getConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error getting oauth2 config: %w", err)
@@ -113,6 +122,7 @@ func refreshToken(ctx context.Context, token *oauth2.Token) (*oauth2.Token, erro
 }
 
 func getConfig() (*oauth2.Config, error) {
+	slog.Log(slog.LevelDebug, "getConfig")
 	configFile, err := readConfig(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file: %w", err)
@@ -138,6 +148,7 @@ func getConfig() (*oauth2.Config, error) {
 }
 
 func getCode(ctx context.Context, config *oauth2.Config) (string, error) {
+	slog.Log(slog.LevelDebug, "getCode")
 	state, err := randString(stateLen)
 	if err != nil {
 		return "", fmt.Errorf("error creating random state string: %w", err)
@@ -158,6 +169,7 @@ func getCode(ctx context.Context, config *oauth2.Config) (string, error) {
 }
 
 func readConfig(fileName string) ([]byte, error) {
+	slog.Log(slog.LevelDebug, "readConfig")
 	configPath, err := xdg.SearchConfigFile(filepath.Join(progName, fileName))
 	if err != nil {
 		return nil, fmt.Errorf("error searching config file: %w", err)
@@ -167,6 +179,7 @@ func readConfig(fileName string) ([]byte, error) {
 
 // Saves a token to a file path.
 func saveToken(token *oauth2.Token) error {
+	slog.Log(slog.LevelDebug, "saveToken")
 	ring, err := keyring.Open(keyringConfig)
 	if err != nil {
 		return fmt.Errorf("error opening keyring: %w", err)
@@ -188,6 +201,7 @@ func saveToken(token *oauth2.Token) error {
 }
 
 func randString(length int) (string, error) {
+	slog.Log(slog.LevelDebug, "randString")
 	data := make([]byte, length)
 	if _, err := io.ReadFull(rand.Reader, data); err != nil {
 		return "", err
