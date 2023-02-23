@@ -35,6 +35,55 @@ var (
 	}
 )
 
+// Retrieves a token from secret store
+func retrieveToken(ctx context.Context) (*oauth2.Token, error) {
+	ring, err := keyring.Open(keyringConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error opening keyring: %w", err)
+	}
+
+	item, err := ring.Get(secretKey)
+	if err != nil {
+		if errors.Is(err, keyring.ErrKeyNotFound) {
+			return mintNewToken(ctx)
+		}
+
+		return nil, fmt.Errorf("error retrieving item from secret store: %w", err)
+	}
+
+	token := new(oauth2.Token)
+	err = json.NewDecoder(bytes.NewReader(item.Data)).Decode(token)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding token: %w", err)
+	}
+
+	return token, nil
+}
+
+// Request a token from the web, then returns the retrieved token.
+func mintNewToken(ctx context.Context) (*oauth2.Token, error) {
+	config, err := getConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting oauth2 config: %w", err)
+	}
+
+	code, err := getCode(ctx, config)
+	if err != nil {
+		return nil, fmt.Errorf("error getting code: %w", err)
+	}
+
+	token, err := config.Exchange(ctx, code)
+	if err != nil {
+		return nil, fmt.Errorf("unable to retrieve token from web: %w", err)
+	}
+
+	if err := saveToken(token); err != nil {
+		return nil, fmt.Errorf("error saving minted token: %w", err)
+	}
+
+	return token, nil
+}
+
 func getConfig() (*oauth2.Config, error) {
 	configFile, err := readConfig(configFile)
 	if err != nil {
@@ -79,61 +128,12 @@ func getCode(ctx context.Context, config *oauth2.Config) (string, error) {
 	return code, nil
 }
 
-// Request a token from the web, then returns the retrieved token.
-func mintNewToken(ctx context.Context) (*oauth2.Token, error) {
-	config, err := getConfig()
-	if err != nil {
-		return nil, fmt.Errorf("error getting oauth2 config: %w", err)
-	}
-
-	code, err := getCode(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("error getting code: %w", err)
-	}
-
-	token, err := config.Exchange(ctx, code)
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve token from web: %w", err)
-	}
-
-	if err := saveToken(token); err != nil {
-		return nil, fmt.Errorf("error saving minted token: %w", err)
-	}
-
-	return token, nil
-}
-
 func readConfig(fileName string) ([]byte, error) {
 	configPath, err := xdg.SearchConfigFile(filepath.Join(progName, fileName))
 	if err != nil {
 		return nil, fmt.Errorf("error searching config file: %w", err)
 	}
 	return os.ReadFile(configPath)
-}
-
-// Retrieves a token from secret store
-func retrieveToken(ctx context.Context) (*oauth2.Token, error) {
-	ring, err := keyring.Open(keyringConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error opening keyring: %w", err)
-	}
-
-	item, err := ring.Get(secretKey)
-	if err != nil {
-		if errors.Is(err, keyring.ErrKeyNotFound) {
-			return mintNewToken(ctx)
-		}
-
-		return nil, fmt.Errorf("error retrieving item from secret store: %w", err)
-	}
-
-	token := new(oauth2.Token)
-	err = json.NewDecoder(bytes.NewReader(item.Data)).Decode(token)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding token: %w", err)
-	}
-
-	return token, nil
 }
 
 // Saves a token to a file path.
