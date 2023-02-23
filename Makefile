@@ -29,7 +29,6 @@ vet: fmt
 
 .PHONY: lint
 lint: install-golangci-lint vet
-	@clear
 	@golangci-lint run .
 
 .PHONY: install-golangci-lint
