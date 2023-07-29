@@ -2,11 +2,13 @@
 
 Retrieve an oauth2 authentication code from a google app and exchange it for a token.
 
+*Note*: This project has moved to [sourcehut](https://git.sr.ht/~jcmuller/oauth2token)
+
 ## Installation
 
 ```
-$ go install github.com/jcmuller/oauth2token@latest
-go: downloading github.com/jcmuller/oauth2token vVERSION
+$ go install git.sr.ht/~jcmuller/oauth2token@latest
+go: downloading git.sr.ht/~jcmuller/oauth2token vVERSION
 ```
 
 ## Configuration
